@@ -36,7 +36,6 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.runtime.SqlFunctions;
-import org.apache.calcite.schema.Function;
 import org.apache.calcite.schema.ImplementableAggFunction;
 import org.apache.calcite.schema.ImplementableFunction;
 import org.apache.calcite.schema.impl.AggregateFunctionImpl;
@@ -52,6 +51,7 @@ import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.Util;
 
+import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -70,7 +70,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.calcite.DataContext.ROOT;
 import static org.apache.calcite.linq4j.tree.ExpressionType.Add;
 import static org.apache.calcite.linq4j.tree.ExpressionType.AndAlso;
 import static org.apache.calcite.linq4j.tree.ExpressionType.Divide;
@@ -419,12 +418,13 @@ public class RexImpTable {
           case TRUE:
             return Expressions.foldAnd(expressions);
           }
-          return Expressions.foldAnd(Lists.transform(expressions,
-              new com.google.common.base.Function<Expression, Expression>() {
-                public Expression apply(Expression e) {
-                  return nullAs2.handle(e);
-                }
-              }));
+          return Expressions.foldAnd(
+              Lists.transform(expressions,
+                  new Function<Expression, Expression>() {
+                    public Expression apply(Expression e) {
+                      return nullAs2.handle(e);
+                    }
+                  }));
         }
       };
     case OR:
@@ -550,7 +550,7 @@ public class RexImpTable {
 
   public CallImplementor get(final SqlOperator operator) {
     if (operator instanceof SqlUserDefinedFunction) {
-      Function udf =
+      org.apache.calcite.schema.Function udf =
         ((SqlUserDefinedFunction) operator).getFunction();
       if (!(udf instanceof ImplementableFunction)) {
         throw new IllegalStateException("User defined function " + operator
@@ -918,8 +918,9 @@ public class RexImpTable {
   static class CountImplementor extends StrictAggImplementor {
     @Override public void implementNotNullAdd(AggContext info,
         AggAddContext add) {
-      add.currentBlock().add(Expressions.statement(
-          Expressions.postIncrementAssign(add.accumulator().get(0))));
+      add.currentBlock().add(
+          Expressions.statement(
+              Expressions.postIncrementAssign(add.accumulator().get(0))));
     }
   }
 
@@ -947,8 +948,9 @@ public class RexImpTable {
       if (justFrameRowCount) {
         return;
       }
-      add.currentBlock().add(Expressions.statement(
-          Expressions.postIncrementAssign(add.accumulator().get(0))));
+      add.currentBlock().add(
+          Expressions.statement(
+              Expressions.postIncrementAssign(add.accumulator().get(0))));
     }
 
     @Override protected Expression implementNotNullResult(WinAggContext info,
@@ -968,8 +970,9 @@ public class RexImpTable {
           ? Expressions.constant(BigDecimal.ZERO)
           : Expressions.constant(0);
 
-      reset.currentBlock().add(Expressions.statement(Expressions.assign(
-          reset.accumulator().get(0), start)));
+      reset.currentBlock().add(
+          Expressions.statement(
+              Expressions.assign(reset.accumulator().get(0), start)));
     }
 
     @Override public void implementNotNullAdd(AggContext info,
@@ -999,8 +1002,10 @@ public class RexImpTable {
       Primitive p = Primitive.of(acc.getType());
       boolean isMin = MIN == info.aggregation();
       Object inf = p == null ? null : (isMin ? p.max : p.min);
-      reset.currentBlock().add(Expressions.statement(Expressions.assign(
-          acc, Expressions.constant(inf, acc.getType()))));
+      reset.currentBlock().add(
+          Expressions.statement(
+              Expressions.assign(acc,
+                  Expressions.constant(inf, acc.getType()))));
     }
 
     @Override public void implementNotNullAdd(AggContext info,
@@ -1025,23 +1030,30 @@ public class RexImpTable {
 
     public void implementReset(AggContext info, AggResetContext reset) {
       List<Expression> acc = reset.accumulator();
-      reset.currentBlock().add(Expressions.statement(Expressions.assign(
-          acc.get(0), Expressions.constant(false))));
-      reset.currentBlock().add(Expressions.statement(Expressions.assign(
-          acc.get(1), getDefaultValue(acc.get(1).getType()))));
+      reset.currentBlock().add(
+          Expressions.statement(
+              Expressions.assign(acc.get(0), Expressions.constant(false))));
+      reset.currentBlock().add(
+          Expressions.statement(
+              Expressions.assign(acc.get(1),
+                  getDefaultValue(acc.get(1).getType()))));
     }
 
     public void implementAdd(AggContext info, AggAddContext add) {
       List<Expression> acc = add.accumulator();
       Expression flag = acc.get(0);
-      add.currentBlock().add(Expressions.ifThen(flag,
-          Expressions.throw_(Expressions.new_(IllegalStateException.class,
-              Expressions.constant("more than one value in agg "
-                  + info.aggregation().toString())))));
-      add.currentBlock().add(Expressions.statement(
-          Expressions.assign(flag, Expressions.constant(true))));
-      add.currentBlock().add(Expressions.statement(Expressions.assign(
-          acc.get(1), add.arguments().get(0))));
+      add.currentBlock().add(
+          Expressions.ifThen(flag,
+              Expressions.throw_(
+                  Expressions.new_(IllegalStateException.class,
+                      Expressions.constant("more than one value in agg "
+                          + info.aggregation())))));
+      add.currentBlock().add(
+          Expressions.statement(
+              Expressions.assign(flag, Expressions.constant(true))));
+      add.currentBlock().add(
+          Expressions.statement(
+              Expressions.assign(acc.get(1), add.arguments().get(0))));
     }
 
     public Expression implementResult(AggContext info,
@@ -1071,13 +1083,17 @@ public class RexImpTable {
         AggResetContext reset) {
       List<Expression> acc = reset.accumulator();
       if (!afi.isStatic) {
-        reset.currentBlock().add(Expressions.statement(Expressions.assign(
-            acc.get(1), Expressions.new_(afi.declaringClass)
-        )));
+        reset.currentBlock().add(
+            Expressions.statement(
+                Expressions.assign(acc.get(1),
+                    Expressions.new_(afi.declaringClass))));
       }
-      reset.currentBlock().add(Expressions.statement(Expressions.assign(
-          acc.get(0), Expressions.call(
-              afi.isStatic ? null : acc.get(1), afi.initMethod))));
+      reset.currentBlock().add(
+          Expressions.statement(
+              Expressions.assign(acc.get(0),
+                  Expressions.call(afi.isStatic
+                      ? null
+                      : acc.get(1), afi.initMethod))));
     }
 
     @Override protected void implementNotNullAdd(AggContext info,
@@ -1087,10 +1103,11 @@ public class RexImpTable {
       List<Expression> args = new ArrayList<Expression>(aggArgs.size() + 1);
       args.add(acc.get(0));
       args.addAll(aggArgs);
-      add.currentBlock().add(Expressions.statement(Expressions.assign(
-          acc.get(0), Expressions.call(
-              afi.isStatic ? null : acc.get(1), afi.addMethod,
-              args))));
+      add.currentBlock().add(
+          Expressions.statement(
+              Expressions.assign(acc.get(0),
+              Expressions.call(afi.isStatic ? null : acc.get(1), afi.addMethod,
+                  args))));
     }
 
     @Override protected Expression implementNotNullResult(AggContext info,
@@ -1123,16 +1140,22 @@ public class RexImpTable {
         };
       }
       BlockBuilder builder = add.nestBlock();
-      add.currentBlock().add(Expressions.ifThen(Expressions.lessThan(
-              add.compareRows(Expressions.subtract(add.currentPosition(),
-                  Expressions.constant(1)), add.currentPosition()),
+      add.currentBlock().add(
+          Expressions.ifThen(
+              Expressions.lessThan(
+                  add.compareRows(
+                      Expressions.subtract(add.currentPosition(),
+                          Expressions.constant(1)),
+                      add.currentPosition()),
               Expressions.constant(0)),
-          Expressions.statement(Expressions.assign(
-              acc, computeNewRank(acc, add)))));
+          Expressions.statement(
+              Expressions.assign(acc, computeNewRank(acc, add)))));
       add.exitBlock();
       add.currentBlock().add(
-          Expressions.ifThen(Expressions.greaterThan(add.currentPosition(),
-              add.startIndex()), builder.toBlock()));
+          Expressions.ifThen(
+              Expressions.greaterThan(add.currentPosition(),
+                  add.startIndex()),
+              builder.toBlock()));
     }
 
     protected Expression computeNewRank(Expression acc, WinAggAddContext add) {
@@ -1192,9 +1215,9 @@ public class RexImpTable {
       WinAggResultContext winResult = (WinAggResultContext) result;
 
       return Expressions.condition(winResult.hasRows(),
-          winResult.rowTranslator(winResult.computeIndex(
-              Expressions.constant(0), seekType)).translate(
-              winResult.rexArguments().get(0), info.returnType()),
+          winResult.rowTranslator(
+              winResult.computeIndex(Expressions.constant(0), seekType))
+              .translate(winResult.rexArguments().get(0), info.returnType()),
           getDefaultValue(info.returnType()));
     }
   }
@@ -1249,8 +1272,8 @@ public class RexImpTable {
 
       Expression offset;
       RexToLixTranslator currentRowTranslator =
-          winResult.rowTranslator(winResult.computeIndex(
-              Expressions.constant(0), SeekType.SET));
+          winResult.rowTranslator(
+              winResult.computeIndex(Expressions.constant(0), SeekType.SET));
       if (rexArgs.size() >= 2) {
         // lead(x, offset) or lead(x, offset, default)
         offset = currentRowTranslator.translate(
@@ -1277,8 +1300,9 @@ public class RexImpTable {
           : getDefaultValue(res.type);
 
       result.currentBlock().add(Expressions.declare(0, res, null));
-      result.currentBlock().add(Expressions.ifThenElse(rowInRange, thenBranch,
-          Expressions.statement(Expressions.assign(res, defaultValue))));
+      result.currentBlock().add(
+          Expressions.ifThenElse(rowInRange, thenBranch,
+              Expressions.statement(Expressions.assign(res, defaultValue))));
       return res;
     }
   }
@@ -1352,8 +1376,9 @@ public class RexImpTable {
     @Override protected Expression implementNotNullResult(
         WinAggContext info, WinAggResultContext result) {
       // Window cannot be empty since ROWS/RANGE is not possible for ROW_NUMBER
-      return Expressions.add(Expressions.subtract(
-          result.index(), result.startIndex()), Expressions.constant(1));
+      return Expressions.add(
+          Expressions.subtract(result.index(), result.startIndex()),
+          Expressions.constant(1));
     }
   }
 
@@ -1669,6 +1694,7 @@ public class RexImpTable {
         return Expressions.constant(true);
       }
       final SqlOperator op = call.getOperator();
+      final Expression root = translator.getRoot();
       if (op == CURRENT_USER
           || op == SESSION_USER
           || op == USER) {
@@ -1681,15 +1707,15 @@ public class RexImpTable {
         // the empty string because a role has to be set explicitly.
         return Expressions.constant("");
       } else if (op == CURRENT_TIMESTAMP) {
-        return Expressions.call(BuiltInMethod.CURRENT_TIMESTAMP.method, ROOT);
+        return Expressions.call(BuiltInMethod.CURRENT_TIMESTAMP.method, root);
       } else if (op == CURRENT_TIME) {
-        return Expressions.call(BuiltInMethod.CURRENT_TIME.method, ROOT);
+        return Expressions.call(BuiltInMethod.CURRENT_TIME.method, root);
       } else if (op == CURRENT_DATE) {
-        return Expressions.call(BuiltInMethod.CURRENT_DATE.method, ROOT);
+        return Expressions.call(BuiltInMethod.CURRENT_DATE.method, root);
       } else if (op == LOCALTIMESTAMP) {
-        return Expressions.call(BuiltInMethod.LOCAL_TIMESTAMP.method, ROOT);
+        return Expressions.call(BuiltInMethod.LOCAL_TIMESTAMP.method, root);
       } else if (op == LOCALTIME) {
-        return Expressions.call(BuiltInMethod.LOCAL_TIME.method, ROOT);
+        return Expressions.call(BuiltInMethod.LOCAL_TIME.method, root);
       } else {
         throw new AssertionError("unknown function " + op);
       }

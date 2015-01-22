@@ -330,8 +330,8 @@ public abstract class EnumerableDefaults {
   public static <TSource> Enumerable<TSource> concat(
       Enumerable<TSource> enumerable0, Enumerable<TSource> enumerable1) {
     //noinspection unchecked
-    return Linq4j.concat(Arrays.<Enumerable<TSource>>asList(enumerable0,
-        enumerable1));
+    return Linq4j.concat(
+        Arrays.<Enumerable<TSource>>asList(enumerable0, enumerable1));
   }
 
   /**
@@ -984,14 +984,9 @@ public abstract class EnumerableDefaults {
                       list.add(tInner);
                     }
                   }
-                  list = new ArrayList<TInner>();
-                  for (TKey key : unmatchedKeys) {
-                    for (TInner inner : innerLookup.get(key)) {
-                      list.add(inner);
-                    }
-                  }
                   inners = Linq4j.enumerator(list);
                   outers = Linq4j.singletonNullEnumerator();
+                  outers.moveNext();
                   unmatchedKeys = null; // don't do the 'leftovers' again
                   continue;
                 }
@@ -1003,10 +998,14 @@ public abstract class EnumerableDefaults {
                 innerEnumerable = null;
               } else {
                 final TKey outerKey = outerKeySelector.apply(outer);
-                if (unmatchedKeys != null) {
-                  unmatchedKeys.remove(outerKey);
+                if (outerKey == null) {
+                  innerEnumerable = null;
+                } else {
+                  if (unmatchedKeys != null) {
+                    unmatchedKeys.remove(outerKey);
+                  }
+                  innerEnumerable = innerLookup.get(outerKey);
                 }
-                innerEnumerable = innerLookup.get(outerKey);
               }
               if (innerEnumerable == null
                   || !innerEnumerable.any()) {
@@ -1777,8 +1776,8 @@ public abstract class EnumerableDefaults {
    */
   public static <TSource> Enumerable<TSource> skipWhile(
       Enumerable<TSource> source, Predicate1<TSource> predicate) {
-    return skipWhile(source, Functions.<TSource, Integer>toPredicate2(
-        predicate));
+    return skipWhile(source,
+        Functions.<TSource, Integer>toPredicate2(predicate));
   }
 
   /**
@@ -1920,8 +1919,8 @@ public abstract class EnumerableDefaults {
    */
   public static <TSource> Enumerable<TSource> takeWhile(
       Enumerable<TSource> source, final Predicate1<TSource> predicate) {
-    return takeWhile(source, Functions.<TSource, Integer>toPredicate2(
-        predicate));
+    return takeWhile(source,
+        Functions.<TSource, Integer>toPredicate2(predicate));
   }
 
   /**

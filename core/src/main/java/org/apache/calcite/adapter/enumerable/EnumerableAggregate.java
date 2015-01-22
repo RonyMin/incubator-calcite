@@ -38,13 +38,11 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import java.lang.reflect.Type;
@@ -54,15 +52,7 @@ import java.util.List;
 
 /** Implementation of {@link org.apache.calcite.rel.core.Aggregate} in
  * {@link org.apache.calcite.adapter.enumerable.EnumerableConvention enumerable calling convention}. */
-public class EnumerableAggregate extends Aggregate
-    implements EnumerableRel {
-  private static final List<SqlAggFunction> SUPPORTED_AGGREGATIONS =
-      ImmutableList.of(
-          SqlStdOperatorTable.COUNT,
-          SqlStdOperatorTable.MIN,
-          SqlStdOperatorTable.MAX,
-          SqlStdOperatorTable.SUM);
-
+public class EnumerableAggregate extends Aggregate implements EnumerableRel {
   public EnumerableAggregate(
       RelOptCluster cluster,
       RelTraitSet traitSet,
@@ -209,7 +199,7 @@ public class EnumerableAggregate extends Aggregate
     for (final AggImpState agg : aggs) {
       agg.context =
           new AggContext() {
-            public org.apache.calcite.sql.SqlAggFunction aggregation() {
+            public SqlAggFunction aggregation() {
               return agg.call.getAggregation();
             }
 
@@ -295,8 +285,7 @@ public class EnumerableAggregate extends Aggregate
       List<Expression> accumulator =
           new ArrayList<Expression>(stateSize);
       for (int j = 0; j < stateSize; j++) {
-        accumulator.add(accPhysType.fieldReference(
-            acc_, j + stateOffset));
+        accumulator.add(accPhysType.fieldReference(acc_, j + stateOffset));
       }
       agg.state = accumulator;
 
@@ -309,17 +298,18 @@ public class EnumerableAggregate extends Aggregate
                   inputPhysType.getRowType().getFieldList();
               List<RexNode> args = new ArrayList<RexNode>();
               for (Integer index : agg.call.getArgList()) {
-                args.add(new RexInputRef(index,
-                    inputTypes.get(index).getType()));
+                args.add(
+                    new RexInputRef(index, inputTypes.get(index).getType()));
               }
               return args;
             }
 
             public RexToLixTranslator rowTranslator() {
               return RexToLixTranslator.forAggregation(typeFactory,
-                  currentBlock(), new RexToLixTranslator.InputGetterImpl(
-                      Collections.singletonList(Pair.of(
-                          (Expression) inParameter, inputPhysType))))
+                  currentBlock(),
+                  new RexToLixTranslator.InputGetterImpl(
+                      Collections.singletonList(
+                          Pair.of((Expression) inParameter, inputPhysType))))
                   .setNullable(currentNullables());
             }
           };
